@@ -169,7 +169,6 @@ pub async fn search_videos(query: &str) -> crate::Result<Vec<ChannelVideo>> {
     let req = client.get(req_url).send().await?;
     let body = req.text().await?;
     let init_str = initial_data(&body).unwrap();
-    let _ = tokio::fs::write("init_str.json", init_str.clone()).await;
     let init_obj: Value = serde_json::from_str(&init_str).unwrap();
     let mut videos = Vec::new();
     let root_data = init_obj["contents"]["twoColumnSearchResultsRenderer"]["primaryContents"]["sectionListRenderer"]["contents"][0].clone();
