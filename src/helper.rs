@@ -135,6 +135,9 @@ pub(crate) fn parese_channel_videos(obj_data: &str, channel_name: String) -> (Ve
     if videos.is_null() {
         videos = initial_data["onResponseReceivedActions"][0]["appendContinuationItemsAction"]["continuationItems"].clone();
     }
+    if videos.is_null() {
+        return (Vec::new(), None);
+    }
     let mut videos_raw = videos.as_array().unwrap().to_owned();
     let mut results = Vec::new();
     let continuation = videos_raw[videos_raw.len() - 1]["continuationItemRenderer"]["continuationEndpoint"]["continuationCommand"]["token"].clone();
