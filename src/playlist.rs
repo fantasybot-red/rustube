@@ -45,7 +45,7 @@ impl Playlist {
     pub async fn from_id(id: &str) -> crate::Result<Self> {
         let client = crate_client().unwrap();
         let req = client.get(format!("https://www.youtube.com/playlist?list={}", id)).send().await?;
-        if !req.status().is_client_error() {
+        if !req.status().is_success() {
             return Err(crate::Error::BadIdFormat);
         }
         let body = req.text().await?;
