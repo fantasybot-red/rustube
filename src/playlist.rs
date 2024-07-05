@@ -12,7 +12,7 @@ pub struct Playlist {
     videos: Vec<PlaylistVideo>,
 }
 
-pub(crate) fn crate_client() -> crate::Result<reqwest::Client> {
+pub fn crate_client() -> crate::Result<reqwest::Client> {
     let cookie_jar = recommended_cookies();
     let headers = recommended_headers();
 

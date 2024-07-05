@@ -273,6 +273,8 @@ pub use crate::channel::Channel;
 
 pub use crate::playlist::Playlist;
 
+pub use crate::playlist::crate_client;  
+
 
 /// The absolute most straightforward way of downloading a YouTube video in high quality!
 ///
