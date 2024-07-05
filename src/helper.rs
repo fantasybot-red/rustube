@@ -1,7 +1,8 @@
 use regex::Regex;
 use serde_json::Value;
+use url::Url;
 
-use crate::{channel_info::{channel_video::ChannelVideo, ChannelInfo}, playlist_info::{playlist_video::PlaylistVideo, PlaylistInfo}};
+use crate::{channel_info::{channel_video::ChannelVideo, ChannelInfo}, crate_client, playlist_info::{playlist_video::PlaylistVideo, PlaylistInfo}};
 
 pub(crate) fn initial_data(watch_html: &str) -> Option<String> {
     let regex_pattern = vec![
@@ -159,4 +160,37 @@ pub(crate) fn parese_channel_metadata(obj_data: &str) -> Result<ChannelInfo, cra
     let playlist_info_v = initial_data["microformat"]["microformatDataRenderer"].clone();
     let playlist_info: ChannelInfo = serde_json::from_value(playlist_info_v).unwrap();
     Ok(playlist_info)
+}
+
+pub async fn search_videos(query: &str) -> crate::Result<Vec<ChannelVideo>> {
+    let client = crate_client().unwrap();
+    let mut req_url = Url::parse("https://www.youtube.com/results").unwrap();
+    req_url.query_pairs_mut().append_pair("search_query", query);
+    let req = client.get(req_url).send().await?;
+    let body = req.text().await?;
+    let init_str = initial_data(&body).unwrap();
+    let _ = tokio::fs::write("init_str.json", init_str.clone()).await;
+    let init_obj: Value = serde_json::from_str(&init_str).unwrap();
+    let mut videos = Vec::new();
+    let root_data = init_obj["contents"]["twoColumnSearchResultsRenderer"]["primaryContents"]["sectionListRenderer"]["contents"][0].clone();
+    let mut videos_raw = root_data["itemSectionRenderer"]["contents"][1]["shelfRenderer"]["content"]["verticalListRenderer"]["items"].clone();
+    if videos_raw.is_null() {
+        videos_raw = root_data["itemSectionRenderer"]["contents"].clone();
+    }
+    let video_raw_vec = videos_raw.as_array().unwrap();
+    for video_raw in video_raw_vec {
+        if video_raw["videoRenderer"].is_null() {
+            continue;
+        }
+        let pvideo = serde_json::from_value::<ChannelVideo>(video_raw["videoRenderer"].clone());
+        if pvideo.is_err() {
+            continue;
+        }
+        let mut video = pvideo.unwrap();
+        if video.author.is_empty() {
+            video.add_author(video_raw["videoRenderer"]["ownerText"]["runs"][0]["text"].as_str().unwrap().to_string());
+        }
+        videos.push(video);
+    }
+    Ok(videos)
 }
