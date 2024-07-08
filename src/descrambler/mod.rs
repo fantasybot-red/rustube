@@ -89,6 +89,7 @@ pub struct VideoDescrambler {
     #[derivative(Debug = "ignore", PartialEq = "ignore")]
     pub(crate) client: Client,
     pub(crate) js: String,
+    pub (crate) js_player_id: String,
 }
 
 impl VideoDescrambler {
@@ -113,7 +114,7 @@ impl VideoDescrambler {
                 apply_descrambler_adaptive_fmts(streaming_data, adaptive_fmts_raw)?;
             }
     
-            apply_signature(streaming_data, &self.js)?;
+            apply_signature(streaming_data, &self.js, &self.js_player_id)?;
             
             Self::initialize_streams(
                 streaming_data,
@@ -254,7 +255,10 @@ fn apply_descrambler_adaptive_fmts(streaming_data: &mut StreamingData, adaptive_
 
 /// Descrambles the signature of a video.
 #[inline]
-fn apply_signature(streaming_data: &mut StreamingData, js: &str) -> crate::Result<()> {
+fn apply_signature(streaming_data: &mut StreamingData, js: &str, js_player_id: &str) -> crate::Result<()> {
+    if js_player_id == "5352eb4f" {
+        return Err(crate::Error::Custom("This player is not supported by this descrambler.".into()));
+    }
     let cipher = Cipher::from_js(js)?;
 
     for raw_format in streaming_data.formats.iter_mut().chain(streaming_data.adaptive_formats.iter_mut()) {

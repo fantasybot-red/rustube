@@ -146,12 +146,13 @@ impl VideoFetcher {
         let is_age_restricted = is_age_restricted(&watch_html);
         Self::check_downloadability(&watch_html, is_age_restricted)?;
 
-        let (video_info, js) = self.get_video_info_and_js(&watch_html, is_age_restricted).await?;
+        let (video_info, js, js_player_id) = self.get_video_info_and_js(&watch_html, is_age_restricted).await?;
 
         Ok(VideoDescrambler {
             video_info,
             client: self.client,
             js,
+            js_player_id,
         })
     }
 
@@ -175,7 +176,7 @@ impl VideoFetcher {
         let watch_html = self.get_html(&self.watch_url).await?;
         let is_age_restricted = is_age_restricted(&watch_html);
         Self::check_fetchability(&watch_html, is_age_restricted)?;
-        let (video_info, _js) = self.get_video_info_and_js(&watch_html, is_age_restricted).await?;
+        let (video_info, _js, _js_player_id) = self.get_video_info_and_js(&watch_html, is_age_restricted).await?;
 
         Ok(video_info)
     }
@@ -241,8 +242,8 @@ impl VideoFetcher {
         &self,
         watch_html: &str,
         is_age_restricted: bool,
-    ) -> crate::Result<(VideoInfo, String)> {
-        let (js, player_response) = self.get_js(is_age_restricted, watch_html).await?;
+    ) -> crate::Result<(VideoInfo, String, String)> {
+        let (js, js_player_id, player_response) = self.get_js(is_age_restricted, watch_html).await?;
 
         let player_response = player_response.ok_or_else(|| Error::UnexpectedResponse(
             "Could not acquire the player response from the watch html!\n\
@@ -257,7 +258,7 @@ impl VideoFetcher {
             is_age_restricted,
         };
 
-        Ok((video_info, js))
+        Ok((video_info, js, js_player_id))
     }
 
     /// Extracts or requests the JavaScript used to descramble the video signature.
@@ -266,7 +267,7 @@ impl VideoFetcher {
         &self,
         is_age_restricted: bool,
         watch_html: &str,
-    ) -> crate::Result<(String, Option<PlayerResponse>)> {
+    ) -> crate::Result<(String, String, Option<PlayerResponse>)> {
         let (js_url, player_response) = match is_age_restricted {
             true => {
                 let embed_url = self.video_id.embed_url();
@@ -275,11 +276,14 @@ impl VideoFetcher {
             }
             false => js_url(watch_html)?
         };
-
+        let js_player_id_regex = Regex::new(r#"/player/([\w\d]+)/"#).unwrap();
+        let js_url_string = &js_url.to_string();
+        let js_player_id_captures = js_player_id_regex.captures(js_url_string).unwrap();
+        let js_player_id = js_player_id_captures.get(1).unwrap().as_str().to_string(); 
         self
             .get_html(&js_url)
             .await
-            .map(|html| (html, player_response))
+            .map(|html| (html, js_player_id, player_response))
     }
 
     /// Requests the [`VideoInfo`] of a video
